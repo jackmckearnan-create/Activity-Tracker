@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Activity Tracker">
+    <title>Activity Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #1d1d1f;
+            margin-bottom: 24px;
+            font-size: 28px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #1d1d1f;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #0071e3;
+        }
+
+        button {
+            background: #0071e3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:active {
+            background: #0077ed;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #86868b;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: #0071e3;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .activity-item {
+            padding: 16px;
+            border-bottom: 1px solid #f5f5f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-info h3 {
+            color: #1d1d1f;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .activity-info p {
+            color: #86868b;
+            font-size: 14px;
+        }
+
+        .delete-btn {
+            background: #ff3b30;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            width: auto;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #86868b;
+        }
+
+        canvas {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .stat-label {
+            color: #86868b;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            color: #1d1d1f;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .breakdown-table {
+            width: 100%;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f5f5f7;
+        }
+
+        .breakdown-row:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-activity {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .breakdown-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .breakdown-name {
+            color: #1d1d1f;
+            font-size: 15px;
+        }
+
+        .breakdown-count {
+            color: #1d1d1f;
+            font-size: 18px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Activity Tracker</h1>
+
+        <div class="tabs card">
+            <button class="tab active" onclick="switchTab('log')">Log Activity</button>
+            <button class="tab" onclick="switchTab('history')">History</button>
+            <button class="tab" onclick="switchTab('exercise')">Exercise Stats</button>
+            <button class="tab" onclick="switchTab('stretching')">Stretching Stats</button>
+        </div>
+
+        <div id="log-tab" class="tab-content active">
+            <div class="card">
+                <div class="form-group">
+                    <label for="activity-name">Activity Name</label>
+                    <select id="activity-name">
+                        <option value="">Select an activity</option>
+                        <option value="Soccer">Soccer</option>
+                        <option value="Golf">Golf</option>
+                        <option value="Workout">Workout</option>
+                        <option value="Walk">Walk</option>
+                        <option value="Bike">Bike</option>
+                        <option value="Stretching">Stretching</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="duration">Duration (minutes)</label>
+                    <input type="number" id="duration" placeholder="30" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="activity-date">Date</label>
+                    <input type="date" id="activity-date">
+                </div>
+                <button onclick="logActivity()">Log Activity</button>
+            </div>
+        </div>
+
+        <div id="history-tab" class="tab-content">
+            <div class="card">
+                <div id="activity-list"></div>
+            </div>
+        </div>
+
+        <div id="exercise-tab" class="tab-content">
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="exercise-time-period">Time Period</label>
+                    <select id="exercise-time-period" onchange="renderExerciseStats()">
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="year">This Year</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card" id="exercise-goal-card" style="margin-bottom: 20px; display: none;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: #1d1d1f;">Weekly Goal Progress</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 24px; font-weight: 600;" id="exercise-goal-count">0/3</div>
+                        <div style="font-size: 14px; color: #86868b;">activities this week</div>
+                    </div>
+                    <div style="font-size: 40px;" id="exercise-goal-emoji">⚪</div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Activities</div>
+                    <div class="stat-value" id="exercise-total-activities">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Minutes</div>
+                    <div class="stat-value" id="exercise-total-minutes">0</div>
+                </div>
+            </div>
+            <div class="card">
+                <canvas id="exercise-chart"></canvas>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <h3 style="font-size: 16px; margin-bottom: 16px; color: #1d1d1f;">Activity Breakdown</h3>
+                <div id="exercise-breakdown"></div>
+            </div>
+        </div>
+
+        <div id="stretching-tab" class="tab-content">
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="stretching-time-period">Time Period</label>
+                    <select id="stretching-time-period" onchange="renderStretchingStats()">
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="year">This Year</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card" id="stretching-goal-card" style="margin-bottom: 20px; display: none;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: #1d1d1f;">Weekly Goal Progress</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 24px; font-weight: 600;" id="stretching-goal-count">0/30</div>
+                        <div style="font-size: 14px; color: #86868b;">minutes this week</div>
+                    </div>
+                    <div style="font-size: 40px;" id="stretching-goal-emoji">⚪</div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Sessions</div>
+                    <div class="stat-value" id="stretching-total-activities">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Minutes</div>
+                    <div class="stat-value" id="stretching-total-minutes">0</div>
+                </div>
+            </div>
+            <div class="card">
+                <canvas id="stretching-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Set today's date as default
+        document.getElementById('activity-date').valueAsDate = new Date();
+
+        // Load activities from localStorage
+        function getActivities() {
+            const activities = localStorage.getItem('activities');
+            return activities ? JSON.parse(activities) : [];
+        }
+
+        // Save activities to localStorage
+        function saveActivities(activities) {
+            localStorage.setItem('activities', JSON.stringify(activities));
+        }
+
+        // Log a new activity
+        function logActivity() {
+            const name = document.getElementById('activity-name').value;
+            const duration = parseInt(document.getElementById('duration').value);
+            const date = document.getElementById('activity-date').value;
+
+            if (!name || !duration || !date) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const activities = getActivities();
+            activities.push({
+                id: Date.now(),
+                name: name,
+                duration: duration,
+                date: date
+            });
+
+            saveActivities(activities);
+
+            // Clear form
+            document.getElementById('activity-name').value = '';
+            document.getElementById('duration').value = '';
+            document.getElementById('activity-date').valueAsDate = new Date();
+
+            alert('Activity logged!');
+        }
+
+        // Delete an activity
+        function deleteActivity(id) {
+            if (confirm('Delete this activity?')) {
+                let activities = getActivities();
+                activities = activities.filter(a => a.id !== id);
+                saveActivities(activities);
+                renderHistory();
+                renderStats();
+            }
+        }
+
+        // Render activity history
+        function renderHistory() {
+            const activities = getActivities();
+            const listDiv = document.getElementById('activity-list');
+
+            if (activities.length === 0) {
+                listDiv.innerHTML = '<div class="empty-state">No activities logged yet</div>';
+                return;
+            }
+
+            // Sort by date (newest first)
+            activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            listDiv.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-info">
+                        <h3>${activity.name}</h3>
+                        <p>${activity.duration} minutes • ${new Date(activity.date).toLocaleDateString()}</p>
+                    </div>
+                    <button class="delete-btn" onclick="deleteActivity(${activity.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        // Render exercise stats and chart (excludes stretching)
+        let exerciseChartInstance = null;
+        let stretchingChartInstance = null;
+        
+        // Activity colors
+        const activityColors = {
+            'Soccer': '#FF6B6B',
+            'Golf': '#4ECDC4',
+            'Workout': '#45B7D1',
+            'Walk': '#96CEB4',
+            'Bike': '#FFEAA7',
+            'Stretching': '#DDA15E',
+            'Other': '#B8B8B8'
+        };
+        
+        function renderExerciseStats() {
+            const activities = getActivities().filter(a => a.name !== 'Stretching');
+            const timePeriod = document.getElementById('exercise-time-period').value;
+            
+            // Get date range based on selected period
+            const today = new Date();
+            const dates = [];
+            let labels = [];
+            
+            if (timePeriod === 'week') {
+                // Last 7 days
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+                labels = dates.map(date => {
+                    const d = new Date(date);
+                    return d.toLocaleDateString('en-US', { weekday: 'short' });
+                });
+            } else if (timePeriod === 'month') {
+                // Last 30 days
+                for (let i = 29; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+                labels = dates.map(date => {
+                    const d = new Date(date);
+                    return d.getDate().toString();
+                });
+            } else if (timePeriod === 'year') {
+                // Last 12 months
+                for (let i = 11; i >= 0; i--) {
+                    const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                    dates.push(date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'));
+                }
+                labels = dates.map(date => {
+                    const [year, month] = date.split('-');
+                    const d = new Date(year, month - 1);
+                    return d.toLocaleDateString('en-US', { month: 'short' });
+                });
+            }
+            
+            // Update stat cards for the selected period
+            const periodActivities = activities.filter(a => {
+                const activityDate = a.date;
+                if (timePeriod === 'week' || timePeriod === 'month') {
+                    return dates.includes(activityDate);
+                } else {
+                    // For year, check if activity is in any of the months
+                    const yearMonth = activityDate.substring(0, 7);
+                    return dates.includes(yearMonth);
+                }
+            });
+            
+            document.getElementById('exercise-total-activities').textContent = periodActivities.length;
+            const totalMinutes = periodActivities.reduce((sum, a) => sum + a.duration, 0);
+            document.getElementById('exercise-total-minutes').textContent = totalMinutes;
+
+            // Show goal tracking only for weekly view
+            const goalCard = document.getElementById('exercise-goal-card');
+            if (timePeriod === 'week') {
+                goalCard.style.display = 'block';
+                const weekCount = periodActivities.length;
+                const goal = 3;
+                document.getElementById('exercise-goal-count').textContent = `${weekCount}/${goal}`;
+                
+                const emoji = document.getElementById('exercise-goal-emoji');
+                if (weekCount >= goal) {
+                    emoji.textContent = '✅';
+                } else {
+                    emoji.textContent = '⚪';
+                }
+            } else {
+                goalCard.style.display = 'none';
+            }
+
+            // Prepare datasets for each activity type (excluding stretching)
+            const activityTypes = ['Soccer', 'Golf', 'Workout', 'Walk', 'Bike', 'Other'];
+            const datasets = activityTypes.map(type => {
+                const data = dates.map(date => {
+                    if (timePeriod === 'year') {
+                        // For year view, count activities in that month
+                        return activities.filter(a => {
+                            const activityYearMonth = a.date.substring(0, 7);
+                            return activityYearMonth === date && a.name === type;
+                        }).length;
+                    } else {
+                        // For week/month, count activities on that day
+                        return activities.filter(a => a.date === date && a.name === type).length;
+                    }
+                });
+                
+                return {
+                    label: type,
+                    data: data,
+                    backgroundColor: activityColors[type],
+                    borderRadius: 6
+                };
+            });
+
+            // Destroy existing chart if it exists
+            if (exerciseChartInstance) {
+                exerciseChartInstance.destroy();
+            }
+
+            // Create new chart
+            const ctx = document.getElementById('exercise-chart').getContext('2d');
+            exerciseChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            },
+                            title: {
+                                display: true,
+                                text: 'Number of Activities'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Populate breakdown table
+            const activityCounts = activityTypes.map(type => {
+                const count = periodActivities.filter(a => a.name === type).length;
+                return { type, count };
+            }).filter(item => item.count > 0); // Only show activities with count > 0
+
+            const breakdownDiv = document.getElementById('exercise-breakdown');
+            if (activityCounts.length === 0) {
+                breakdownDiv.innerHTML = '<div style="text-align: center; color: #86868b; padding: 20px;">No activities logged for this period</div>';
+            } else {
+                breakdownDiv.innerHTML = '<div class="breakdown-table">' + 
+                    activityCounts.map(item => `
+                        <div class="breakdown-row">
+                            <div class="breakdown-activity">
+                                <div class="breakdown-color" style="background-color: ${activityColors[item.type]}"></div>
+                                <span class="breakdown-name">${item.type}</span>
+                            </div>
+                            <span class="breakdown-count">${item.count}</span>
+                        </div>
+                    `).join('') + 
+                '</div>';
+            }
+        }
+        
+        function renderStretchingStats() {
+            const activities = getActivities().filter(a => a.name === 'Stretching');
+            const timePeriod = document.getElementById('stretching-time-period').value;
+            
+            // Get date range based on selected period
+            const today = new Date();
+            const dates = [];
+            let labels = [];
+            
+            if (timePeriod === 'week') {
+                // Last 7 days
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+                labels = dates.map(date => {
+                    const d = new Date(date);
+                    return d.toLocaleDateString('en-US', { weekday: 'short' });
+                });
+            } else if (timePeriod === 'month') {
+                // Last 30 days
+                for (let i = 29; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+                labels = dates.map(date => {
+                    const d = new Date(date);
+                    return d.getDate().toString();
+                });
+            } else if (timePeriod === 'year') {
+                // Last 12 months
+                for (let i = 11; i >= 0; i--) {
+                    const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                    dates.push(date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'));
+                }
+                labels = dates.map(date => {
+                    const [year, month] = date.split('-');
+                    const d = new Date(year, month - 1);
+                    return d.toLocaleDateString('en-US', { month: 'short' });
+                });
+            }
+            
+            // Update stat cards for the selected period
+            const periodActivities = activities.filter(a => {
+                const activityDate = a.date;
+                if (timePeriod === 'week' || timePeriod === 'month') {
+                    return dates.includes(activityDate);
+                } else {
+                    // For year, check if activity is in any of the months
+                    const yearMonth = activityDate.substring(0, 7);
+                    return dates.includes(yearMonth);
+                }
+            });
+            
+            document.getElementById('stretching-total-activities').textContent = periodActivities.length;
+            const totalMinutes = periodActivities.reduce((sum, a) => sum + a.duration, 0);
+            document.getElementById('stretching-total-minutes').textContent = totalMinutes;
+
+            // Show goal tracking only for weekly view
+            const goalCard = document.getElementById('stretching-goal-card');
+            if (timePeriod === 'week') {
+                goalCard.style.display = 'block';
+                const weekMinutes = totalMinutes;
+                const goal = 30;
+                document.getElementById('stretching-goal-count').textContent = `${weekMinutes}/${goal}`;
+                
+                const emoji = document.getElementById('stretching-goal-emoji');
+                if (weekMinutes >= goal) {
+                    emoji.textContent = '✅';
+                } else {
+                    emoji.textContent = '⚪';
+                }
+            } else {
+                goalCard.style.display = 'none';
+            }
+
+            // Prepare data for stretching minutes
+            const minutesData = dates.map(date => {
+                if (timePeriod === 'year') {
+                    // For year view, sum minutes in that month
+                    return activities.filter(a => {
+                        const activityYearMonth = a.date.substring(0, 7);
+                        return activityYearMonth === date;
+                    }).reduce((sum, a) => sum + a.duration, 0);
+                } else {
+                    // For week/month, sum minutes on that day
+                    return activities.filter(a => a.date === date).reduce((sum, a) => sum + a.duration, 0);
+                }
+            });
+
+            // Destroy existing chart if it exists
+            if (stretchingChartInstance) {
+                stretchingChartInstance.destroy();
+            }
+
+            // Create new chart
+            const ctx = document.getElementById('stretching-chart').getContext('2d');
+            stretchingChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Stretching Minutes',
+                        data: minutesData,
+                        backgroundColor: activityColors['Stretching'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 10
+                            },
+                            title: {
+                                display: true,
+                                text: 'Minutes'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Switch between tabs
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + '-tab').classList.add('active');
+
+            // Render content if needed
+            if (tabName === 'history') {
+                renderHistory();
+            } else if (tabName === 'exercise') {
+                renderExerciseStats();
+            } else if (tabName === 'stretching') {
+                renderStretchingStats();
+            }
+        }
+
+        // Initial render
+        renderHistory();
+        renderExerciseStats();
+        renderStretchingStats();
+    </script>
+</body>
+</html>
