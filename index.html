@@ -400,7 +400,8 @@
                 activities = activities.filter(a => a.id !== id);
                 saveActivities(activities);
                 renderHistory();
-                renderStats();
+                renderExerciseStats();
+                renderStretchingStats();
             }
         }
 
@@ -417,15 +418,21 @@
             // Sort by date (newest first)
             activities.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            listDiv.innerHTML = activities.map(activity => `
+            listDiv.innerHTML = activities.map(activity => {
+                // Parse date without timezone conversion
+                const [year, month, day] = activity.date.split('-');
+                const displayDate = new Date(year, month - 1, day).toLocaleDateString();
+                
+                return `
                 <div class="activity-item">
                     <div class="activity-info">
                         <h3>${activity.name}</h3>
-                        <p>${activity.duration} minutes • ${new Date(activity.date).toLocaleDateString()}</p>
+                        <p>${activity.duration} minutes • ${displayDate}</p>
                     </div>
                     <button class="delete-btn" onclick="deleteActivity(${activity.id})">Delete</button>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Render exercise stats and chart (excludes stretching)
@@ -496,282 +503,3 @@
                     // For year, check if activity is in any of the months
                     const yearMonth = activityDate.substring(0, 7);
                     return dates.includes(yearMonth);
-                }
-            });
-            
-            document.getElementById('exercise-total-activities').textContent = periodActivities.length;
-            const totalMinutes = periodActivities.reduce((sum, a) => sum + a.duration, 0);
-            document.getElementById('exercise-total-minutes').textContent = totalMinutes;
-
-            // Show goal tracking only for weekly view
-            const goalCard = document.getElementById('exercise-goal-card');
-            if (timePeriod === 'week') {
-                goalCard.style.display = 'block';
-                const weekCount = periodActivities.length;
-                const goal = 3;
-                document.getElementById('exercise-goal-count').textContent = `${weekCount}/${goal}`;
-                
-                const emoji = document.getElementById('exercise-goal-emoji');
-                if (weekCount >= goal) {
-                    emoji.textContent = '✅';
-                } else {
-                    emoji.textContent = '⚪';
-                }
-            } else {
-                goalCard.style.display = 'none';
-            }
-
-            // Prepare datasets for each activity type (excluding stretching)
-            const activityTypes = ['Soccer', 'Golf', 'Workout', 'Walk', 'Bike', 'Other'];
-            const datasets = activityTypes.map(type => {
-                const data = dates.map(date => {
-                    if (timePeriod === 'year') {
-                        // For year view, count activities in that month
-                        return activities.filter(a => {
-                            const activityYearMonth = a.date.substring(0, 7);
-                            return activityYearMonth === date && a.name === type;
-                        }).length;
-                    } else {
-                        // For week/month, count activities on that day
-                        return activities.filter(a => a.date === date && a.name === type).length;
-                    }
-                });
-                
-                return {
-                    label: type,
-                    data: data,
-                    backgroundColor: activityColors[type],
-                    borderRadius: 6
-                };
-            });
-
-            // Destroy existing chart if it exists
-            if (exerciseChartInstance) {
-                exerciseChartInstance.destroy();
-            }
-
-            // Create new chart
-            const ctx = document.getElementById('exercise-chart').getContext('2d');
-            exerciseChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom'
-                        }
-                    },
-                    scales: {
-                        x: {
-                            stacked: true
-                        },
-                        y: {
-                            stacked: true,
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            },
-                            title: {
-                                display: true,
-                                text: 'Number of Activities'
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Populate breakdown table
-            const activityCounts = activityTypes.map(type => {
-                const count = periodActivities.filter(a => a.name === type).length;
-                return { type, count };
-            }).filter(item => item.count > 0); // Only show activities with count > 0
-
-            const breakdownDiv = document.getElementById('exercise-breakdown');
-            if (activityCounts.length === 0) {
-                breakdownDiv.innerHTML = '<div style="text-align: center; color: #86868b; padding: 20px;">No activities logged for this period</div>';
-            } else {
-                breakdownDiv.innerHTML = '<div class="breakdown-table">' + 
-                    activityCounts.map(item => `
-                        <div class="breakdown-row">
-                            <div class="breakdown-activity">
-                                <div class="breakdown-color" style="background-color: ${activityColors[item.type]}"></div>
-                                <span class="breakdown-name">${item.type}</span>
-                            </div>
-                            <span class="breakdown-count">${item.count}</span>
-                        </div>
-                    `).join('') + 
-                '</div>';
-            }
-        }
-        
-        function renderStretchingStats() {
-            const activities = getActivities().filter(a => a.name === 'Stretching');
-            const timePeriod = document.getElementById('stretching-time-period').value;
-            
-            // Get date range based on selected period
-            const today = new Date();
-            const dates = [];
-            let labels = [];
-            
-            if (timePeriod === 'week') {
-                // Last 7 days
-                for (let i = 6; i >= 0; i--) {
-                    const date = new Date(today);
-                    date.setDate(date.getDate() - i);
-                    dates.push(date.toISOString().split('T')[0]);
-                }
-                labels = dates.map(date => {
-                    const d = new Date(date);
-                    return d.toLocaleDateString('en-US', { weekday: 'short' });
-                });
-            } else if (timePeriod === 'month') {
-                // Last 30 days
-                for (let i = 29; i >= 0; i--) {
-                    const date = new Date(today);
-                    date.setDate(date.getDate() - i);
-                    dates.push(date.toISOString().split('T')[0]);
-                }
-                labels = dates.map(date => {
-                    const d = new Date(date);
-                    return d.getDate().toString();
-                });
-            } else if (timePeriod === 'year') {
-                // Last 12 months
-                for (let i = 11; i >= 0; i--) {
-                    const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                    dates.push(date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'));
-                }
-                labels = dates.map(date => {
-                    const [year, month] = date.split('-');
-                    const d = new Date(year, month - 1);
-                    return d.toLocaleDateString('en-US', { month: 'short' });
-                });
-            }
-            
-            // Update stat cards for the selected period
-            const periodActivities = activities.filter(a => {
-                const activityDate = a.date;
-                if (timePeriod === 'week' || timePeriod === 'month') {
-                    return dates.includes(activityDate);
-                } else {
-                    // For year, check if activity is in any of the months
-                    const yearMonth = activityDate.substring(0, 7);
-                    return dates.includes(yearMonth);
-                }
-            });
-            
-            document.getElementById('stretching-total-activities').textContent = periodActivities.length;
-            const totalMinutes = periodActivities.reduce((sum, a) => sum + a.duration, 0);
-            document.getElementById('stretching-total-minutes').textContent = totalMinutes;
-
-            // Show goal tracking only for weekly view
-            const goalCard = document.getElementById('stretching-goal-card');
-            if (timePeriod === 'week') {
-                goalCard.style.display = 'block';
-                const weekMinutes = totalMinutes;
-                const goal = 30;
-                document.getElementById('stretching-goal-count').textContent = `${weekMinutes}/${goal}`;
-                
-                const emoji = document.getElementById('stretching-goal-emoji');
-                if (weekMinutes >= goal) {
-                    emoji.textContent = '✅';
-                } else {
-                    emoji.textContent = '⚪';
-                }
-            } else {
-                goalCard.style.display = 'none';
-            }
-
-            // Prepare data for stretching minutes
-            const minutesData = dates.map(date => {
-                if (timePeriod === 'year') {
-                    // For year view, sum minutes in that month
-                    return activities.filter(a => {
-                        const activityYearMonth = a.date.substring(0, 7);
-                        return activityYearMonth === date;
-                    }).reduce((sum, a) => sum + a.duration, 0);
-                } else {
-                    // For week/month, sum minutes on that day
-                    return activities.filter(a => a.date === date).reduce((sum, a) => sum + a.duration, 0);
-                }
-            });
-
-            // Destroy existing chart if it exists
-            if (stretchingChartInstance) {
-                stretchingChartInstance.destroy();
-            }
-
-            // Create new chart
-            const ctx = document.getElementById('stretching-chart').getContext('2d');
-            stretchingChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Stretching Minutes',
-                        data: minutesData,
-                        backgroundColor: activityColors['Stretching'],
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 10
-                            },
-                            title: {
-                                display: true,
-                                text: 'Minutes'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Switch between tabs
-        function switchTab(tabName) {
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            document.getElementById(tabName + '-tab').classList.add('active');
-
-            // Render content if needed
-            if (tabName === 'history') {
-                renderHistory();
-            } else if (tabName === 'exercise') {
-                renderExerciseStats();
-            } else if (tabName === 'stretching') {
-                renderStretchingStats();
-            }
-        }
-
-        // Initial render
-        renderHistory();
-        renderExerciseStats();
-        renderStretchingStats();
-    </script>
-</body>
-</html>
